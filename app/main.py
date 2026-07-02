@@ -1,7 +1,9 @@
 """FastAPI application entry point."""
 
-
-import uuid, time, sys, logging
+import logging
+import sys
+import time
+import uuid
 from contextlib import asynccontextmanager
 
 import structlog
@@ -9,15 +11,16 @@ from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from sqlalchemy import text
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 from app.config import get_settings
 from app.database import engine
 from app.dependencies import close_redis_client, get_redis_client
-from app.routers import health, urls, auth, analytics
+from app.routers import analytics, auth, health, urls
 
 settings = get_settings()
+
 
 def setup_logging():
     log_level_num = getattr(logging, settings.log_level.upper(), logging.INFO)
@@ -26,14 +29,14 @@ def setup_logging():
         stream=sys.stdout,
         level=log_level_num,
     )
-    
+
     processors = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.EventRenamer("message"),
     ]
-    
+
     if settings.is_production:
         processors.append(structlog.processors.dict_tracebacks)
         processors.append(structlog.processors.JSONRenderer())
@@ -47,19 +50,16 @@ def setup_logging():
         cache_logger_on_first_use=True,
     )
 
+
 setup_logging()
 log = structlog.get_logger()
 
 # ── Metrics ────────────────────────────────────────────────────────────────────
 REQUEST_COUNT = Counter(
-    "http_requests_total",
-    "Total HTTP requests",
-    ["method", "endpoint", "http_status"]
+    "http_requests_total", "Total HTTP requests", ["method", "endpoint", "http_status"]
 )
 REQUEST_LATENCY = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request latency",
-    ["method", "endpoint"]
+    "http_request_duration_seconds", "HTTP request latency", ["method", "endpoint"]
 )
 
 
@@ -139,8 +139,12 @@ async def request_id_middleware(request: Request, call_next) -> Response:
     # Update metrics
     endpoint = request.url.path
     if endpoint != "/metrics":
-        REQUEST_COUNT.labels(method=request.method, endpoint=endpoint, http_status=response.status_code).inc()
-        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(duration_s)
+        REQUEST_COUNT.labels(
+            method=request.method, endpoint=endpoint, http_status=response.status_code
+        ).inc()
+        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(
+            duration_s
+        )
 
     log.info(
         "http_request",
@@ -203,6 +207,7 @@ app.include_router(health.router, prefix="/v1", tags=["Health"])
 app.include_router(auth.router)
 app.include_router(urls.router, tags=["URLs"])
 app.include_router(analytics.router)
+
 
 @app.get("/metrics", tags=["Observability"])
 async def metrics():

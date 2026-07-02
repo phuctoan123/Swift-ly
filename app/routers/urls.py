@@ -1,18 +1,22 @@
 """URL router — shorten, redirect, and management endpoints."""
 
+import redis.asyncio as aioredis
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-import redis.asyncio as aioredis
 
 from app.config import get_settings
-from app.database import get_async_session
-from app.dependencies import get_optional_user, get_current_user, get_redis_client
 from app.core.rate_limit import RateLimiter
+from app.database import get_async_session
+from app.dependencies import get_current_user, get_optional_user, get_redis_client
 from app.models.user import User
 from app.schemas.common import ErrorResponse
-from app.schemas.url import ShortenRequest, ShortenResponse, URLListResponse, URLDetailResponse
+from app.schemas.url import (
+    ShortenRequest,
+    ShortenResponse,
+    URLListResponse,
+)
 from app.services import url_service
 
 router = APIRouter()
@@ -20,6 +24,7 @@ log = structlog.get_logger()
 settings = get_settings()
 
 shorten_rate_limit = RateLimiter(times=50, seconds=3600)  # 50 req/hour
+
 
 # ── POST /v1/shorten ───────────────────────────────────────────────────────────
 @router.post(
@@ -74,15 +79,21 @@ async def shorten_url(
             expires_in_days=request_body.expires_in_days,
             user_id=user.id if user else None,
         )
-        
+
         # Warm cache
         try:
-            await redis.setex(f"url:{url_record.short_code}", settings.redis_ttl_seconds, url_record.long_url)
+            await redis.setex(
+                f"url:{url_record.short_code}",
+                settings.redis_ttl_seconds,
+                url_record.long_url,
+            )
         except Exception as e:
             log.warning("redis_cache_write_error", error=str(e))
-            
+
         # Add background task
-        background_tasks.add_task(url_service.fetch_page_title, url_record.short_code, long_url)
+        background_tasks.add_task(
+            url_service.fetch_page_title, url_record.short_code, long_url
+        )
     except ValueError as e:
         # Custom alias conflict
         raise HTTPException(
@@ -149,7 +160,9 @@ async def redirect_url(
     """
     Redirect đến URL gốc.
     """
-    url_record = await url_service.get_url_by_code(db=db, redis=redis, short_code=short_code)
+    url_record = await url_service.get_url_by_code(
+        db=db, redis=redis, short_code=short_code
+    )
 
     if url_record is None:
         log.info(
@@ -164,21 +177,22 @@ async def redirect_url(
                 "message": "URL ngắn không tồn tại hoặc đã hết hạn.",
             },
         )
-        
+
     # Publish click event to Redis Stream async
     try:
         import json
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
         client_ip = request.client.host if request.client else None
         user_agent = request.headers.get("user-agent")
         referer = request.headers.get("referer")
-        
+
         event_data = {
             "short_code": short_code,
             "ip_address": client_ip or "",
             "user_agent": user_agent or "",
             "referer": referer or "",
-            "clicked_at": datetime.now(UTC).isoformat()
+            "clicked_at": datetime.now(UTC).isoformat(),
         }
         await redis.xadd("url_click_stream", {"data": json.dumps(event_data)})
     except Exception as e:
@@ -195,6 +209,7 @@ async def redirect_url(
         url=url_record.long_url,
         status_code=status.HTTP_302_FOUND,
     )
+
 
 # ── GET /v1/urls ───────────────────────────────────────────────────────────────
 @router.get(
@@ -236,5 +251,8 @@ async def delete_url(
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "URL_NOT_FOUND", "message": "URL không tìm thấy hoặc bạn không có quyền"},
+            detail={
+                "error": "URL_NOT_FOUND",
+                "message": "URL không tìm thấy hoặc bạn không có quyền",
+            },
         )

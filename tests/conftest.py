@@ -34,6 +34,7 @@ TestAsyncSessionLocal = async_sessionmaker(
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_database():
     """Tạo tất cả bảng một lần cho cả session test."""
@@ -62,6 +63,7 @@ async def client(db_session: AsyncSession):
     Cung cấp AsyncClient với dependency override để dùng test DB.
     Override get_async_session để tất cả endpoints dùng test DB session.
     """
+
     async def override_get_async_session():
         yield db_session
 

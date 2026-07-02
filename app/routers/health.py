@@ -66,7 +66,7 @@ async def health_check(
     settings = get_settings()
 
     response.status_code = 200 if overall_healthy else 503
-    
+
     return HealthResponse(
         status="healthy" if overall_healthy else "degraded",
         version=settings.app_version,

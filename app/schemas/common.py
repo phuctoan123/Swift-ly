@@ -12,10 +12,14 @@ class ErrorResponse(BaseModel):
     message: str
     field: str | None = None
 
-    model_config = {"json_schema_extra": {"example": {
-        "error": "URL_NOT_FOUND",
-        "message": "URL ngắn không tồn tại hoặc đã hết hạn.",
-    }}}
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "error": "URL_NOT_FOUND",
+                "message": "URL ngắn không tồn tại hoặc đã hết hạn.",
+            }
+        }
+    }
 
 
 class DependencyStatus(BaseModel):
@@ -35,12 +39,16 @@ class HealthResponse(BaseModel):
     uptime_seconds: float | None = None
     dependencies: dict[str, str]
 
-    model_config = {"json_schema_extra": {"example": {
-        "status": "healthy",
-        "version": "0.1.0",
-        "timestamp": "2025-01-16T08:30:00Z",
-        "dependencies": {
-            "database": "healthy",
-            "redis": "healthy",
-        },
-    }}}
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "status": "healthy",
+                "version": "0.1.0",
+                "timestamp": "2025-01-16T08:30:00Z",
+                "dependencies": {
+                    "database": "healthy",
+                    "redis": "healthy",
+                },
+            }
+        }
+    }

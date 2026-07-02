@@ -1,9 +1,10 @@
 """Authentication router."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Any
 
 from app.database import get_async_session
 from app.schemas.auth import Token, UserCreate, UserResponse
@@ -35,19 +36,25 @@ async def login(
     user = await auth_service.get_user_by_email(db, email=form_data.username)
     if not user:
         user = await auth_service.get_user_by_username(db, username=form_data.username)
-        
+
     if not user:
         raise HTTPException(
             status_code=400,
-            detail={"error": "INVALID_CREDENTIALS", "message": "Sai tài khoản hoặc mật khẩu"},
+            detail={
+                "error": "INVALID_CREDENTIALS",
+                "message": "Sai tài khoản hoặc mật khẩu",
+            },
         )
-        
+
     if not auth_service.verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=400,
-            detail={"error": "INVALID_CREDENTIALS", "message": "Sai tài khoản hoặc mật khẩu"},
+            detail={
+                "error": "INVALID_CREDENTIALS",
+                "message": "Sai tài khoản hoặc mật khẩu",
+            },
         )
-        
+
     if not user.is_active:
         raise HTTPException(
             status_code=400,

@@ -133,7 +133,7 @@ class ClickEvent(Base):
         server_default=func.now(),
     )
     ip_address: Mapped[str | None] = mapped_column(
-        String(45),   # IPv4 max 15 chars, IPv6 max 45 chars
+        String(45),  # IPv4 max 15 chars, IPv6 max 45 chars
         nullable=True,
     )
     user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -182,18 +182,10 @@ class URLStats(Base):
         primary_key=True,
         comment="Date of aggregation (YYYY-MM-DD)",
     )
-    total_clicks: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    unique_ips: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    mobile_clicks: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    desktop_clicks: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
+    total_clicks: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    unique_ips: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    mobile_clicks: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    desktop_clicks: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     top_countries: Mapped[dict | None] = mapped_column(
         JSON,
         nullable=True,

@@ -4,12 +4,12 @@ import secrets
 import string
 from datetime import UTC, datetime, timedelta
 
-import structlog
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
-from bs4 import BeautifulSoup
 import httpx
 import redis.asyncio as aioredis
+import structlog
+from bs4 import BeautifulSoup
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -23,6 +23,7 @@ BASE62_CHARS = string.ascii_letters + string.digits  # 62 ký tự
 
 
 # ── Short Code Generation ──────────────────────────────────────────────────────
+
 
 def generate_short_code(length: int | None = None) -> str:
     """
@@ -65,6 +66,7 @@ def validate_url(url: str) -> bool:
 
 # ── Background Tasks ───────────────────────────────────────────────────────────
 
+
 async def fetch_page_title(short_code: str, long_url: str) -> None:
     """Fetch trang gốc để lấy thẻ <title> lưu vào DB."""
     try:
@@ -77,6 +79,7 @@ async def fetch_page_title(short_code: str, long_url: str) -> None:
                     title = title_tag.string.strip()[:255]
                     # Lưu vào DB
                     from app.database import AsyncSessionLocal
+
                     async with AsyncSessionLocal() as session:
                         stmt = select(URL).where(URL.short_code == short_code)
                         result = await session.execute(stmt)
@@ -85,10 +88,13 @@ async def fetch_page_title(short_code: str, long_url: str) -> None:
                             url_record.title = title
                             await session.commit()
     except Exception as e:
-        log.warning("fetch_title_failed", short_code=short_code, url=long_url, error=str(e))
+        log.warning(
+            "fetch_title_failed", short_code=short_code, url=long_url, error=str(e)
+        )
 
 
 # ── Database Operations ────────────────────────────────────────────────────────
+
 
 async def get_url_by_code(
     db: AsyncSession,
@@ -103,7 +109,7 @@ async def get_url_by_code(
     3. Query DB nếu miss, sau đó lưu cache.
     """
     cache_key = f"url:{short_code}"
-    
+
     # 1. Thử đọc từ cache
     try:
         cached = await redis.get(cache_key)
@@ -112,7 +118,7 @@ async def get_url_by_code(
         if cached:
             # Mock lại một object URL từ cache string (vì router chỉ cần long_url)
             # Tuy nhiên, ta trả ra một dummy URL để tiện, hoặc return dict.
-            # Tốt nhất là serialize/deserialize đúng chuẩn. 
+            # Tốt nhất là serialize/deserialize đúng chuẩn.
             # Dành cho MVP, ta trả về dummy URL chỉ chứa long_url.
             return URL(short_code=short_code, long_url=cached)
     except Exception as e:
@@ -131,9 +137,13 @@ async def get_url_by_code(
     # 3. Lưu cache
     try:
         if url_record:
-            await redis.setex(cache_key, settings.redis_ttl_seconds, url_record.long_url)
+            await redis.setex(
+                cache_key, settings.redis_ttl_seconds, url_record.long_url
+            )
         else:
-            await redis.setex(cache_key, settings.redis_negative_ttl_seconds, "NOT_FOUND")
+            await redis.setex(
+                cache_key, settings.redis_negative_ttl_seconds, "NOT_FOUND"
+            )
     except Exception as e:
         log.warning("redis_cache_write_error", error=str(e))
 
@@ -177,9 +187,7 @@ async def create_short_url(
     # ── Case 1: Custom alias ───────────────────────────────────────────────────
     if custom_alias:
         # Kiểm tra alias chưa bị dùng
-        existing = await db.execute(
-            select(URL).where(URL.short_code == custom_alias)
-        )
+        existing = await db.execute(select(URL).where(URL.short_code == custom_alias))
         if existing.scalar_one_or_none() is not None:
             log.warning("custom_alias_conflict", alias=custom_alias)
             raise ValueError(f"Custom alias '{custom_alias}' đã được sử dụng.")
@@ -234,8 +242,7 @@ async def create_short_url(
             continue
 
     raise RuntimeError(
-        f"Không thể tạo short code sau {max_retries} lần thử. "
-        "Vui lòng thử lại sau."
+        f"Không thể tạo short code sau {max_retries} lần thử. Vui lòng thử lại sau."
     )
 
 
@@ -259,26 +266,38 @@ async def deactivate_url(
     url_record.is_active = False
     await db.commit()
     await db.refresh(url_record)
-    
+
     # Invalidate cache
     try:
         await redis.delete(f"url:{short_code}")
     except Exception as e:
         log.warning("redis_cache_delete_error", error=str(e))
-        
+
     log.info("url_deactivated", short_code=short_code)
     return url_record
 
-async def get_user_urls(db: AsyncSession, user_id: str, limit: int = 50, offset: int = 0) -> tuple[list[URL], int]:
+
+async def get_user_urls(
+    db: AsyncSession, user_id: str, limit: int = 50, offset: int = 0
+) -> tuple[list[URL], int]:
     """Lấy danh sách URL của user có phân trang."""
     # Count
     from sqlalchemy import func
-    count_stmt = select(func.count(URL.id)).where(URL.user_id == user_id, URL.is_active.is_(True))
+
+    count_stmt = select(func.count(URL.id)).where(
+        URL.user_id == user_id, URL.is_active.is_(True)
+    )
     total = await db.scalar(count_stmt) or 0
-    
+
     # Fetch items
-    stmt = select(URL).where(URL.user_id == user_id, URL.is_active.is_(True)).order_by(URL.created_at.desc()).limit(limit).offset(offset)
+    stmt = (
+        select(URL)
+        .where(URL.user_id == user_id, URL.is_active.is_(True))
+        .order_by(URL.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     result = await db.execute(stmt)
     items = list(result.scalars().all())
-    
+
     return items, total

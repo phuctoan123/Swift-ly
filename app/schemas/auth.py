@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -6,8 +8,6 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50, description="Tên đăng nhập")
     password: str = Field(..., min_length=6, max_length=72, description="Mật khẩu")
 
-
-from uuid import UUID
 
 class UserResponse(BaseModel):
     id: UUID

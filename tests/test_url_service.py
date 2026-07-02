@@ -14,6 +14,7 @@ from app.services.url_service import BASE62_CHARS, generate_short_code, validate
 
 # ── generate_short_code() ──────────────────────────────────────────────────────
 
+
 class TestGenerateShortCode:
     """Tests cho hàm generate_short_code()."""
 
@@ -57,31 +58,38 @@ class TestGenerateShortCode:
 
 # ── validate_url() ─────────────────────────────────────────────────────────────
 
+
 class TestValidateUrl:
     """Tests cho hàm validate_url()."""
 
-    @pytest.mark.parametrize("url", [
-        "https://www.google.com",
-        "http://example.com",
-        "https://github.com/user/repo",
-        "https://sub.domain.co.uk/path?param=value&other=123",
-        "http://192.168.1.1/admin",  # validate_url chỉ check scheme, không check SSRF
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://www.google.com",
+            "http://example.com",
+            "https://github.com/user/repo",
+            "https://sub.domain.co.uk/path?param=value&other=123",
+            "http://192.168.1.1/admin",  # validate_url chỉ check scheme, không check SSRF
+        ],
+    )
     def test_valid_urls(self, url: str):
         """URL hợp lệ phải trả về True."""
         assert validate_url(url) is True, f"Expected True for URL: {url}"
 
-    @pytest.mark.parametrize("url", [
-        "",
-        "   ",
-        "not-a-url",
-        "ftp://example.com",
-        "mailto:user@example.com",
-        "javascript:alert(1)",
-        "http",
-        "https://",
-        "//example.com",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "",
+            "   ",
+            "not-a-url",
+            "ftp://example.com",
+            "mailto:user@example.com",
+            "javascript:alert(1)",
+            "http",
+            "https://",
+            "//example.com",
+        ],
+    )
     def test_invalid_urls(self, url: str):
         """URL không hợp lệ phải trả về False."""
         assert validate_url(url) is False, f"Expected False for URL: {url!r}"

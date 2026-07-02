@@ -16,17 +16,17 @@ settings = get_settings()
 # ── Engine ─────────────────────────────────────────────────────────────────────
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.is_development,   # Log SQL queries trong dev
+    echo=settings.is_development,  # Log SQL queries trong dev
     pool_size=10,
     max_overflow=20,
-    pool_pre_ping=True,             # Kiểm tra connection còn sống trước khi dùng
+    pool_pre_ping=True,  # Kiểm tra connection còn sống trước khi dùng
 )
 
 # ── Session Factory ────────────────────────────────────────────────────────────
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,         # Tránh lazy loading sau commit
+    expire_on_commit=False,  # Tránh lazy loading sau commit
     autocommit=False,
     autoflush=False,
 )
@@ -35,6 +35,7 @@ AsyncSessionLocal = async_sessionmaker(
 # ── Declarative Base ───────────────────────────────────────────────────────────
 class Base(DeclarativeBase):
     """Base class cho tất cả SQLAlchemy models."""
+
     pass
 
 

@@ -1,10 +1,13 @@
 """Dependency injection functions for FastAPI."""
 
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import redis.asyncio as aioredis
-from fastapi import Depends
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -48,7 +51,9 @@ RedisClient = Annotated[aioredis.Redis, Depends(get_redis_client)]
 # ── DB Session (re-export for convenience) ─────────────────────────────────────
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Alias của get_async_session — dùng trong Depends()."""
-    async with __import__("app.database", fromlist=["AsyncSessionLocal"]).AsyncSessionLocal() as session:  # noqa: E501
+    async with __import__(
+        "app.database", fromlist=["AsyncSessionLocal"]
+    ).AsyncSessionLocal() as session:  # noqa: E501
         try:
             yield session
         except Exception:
@@ -59,10 +64,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
-from fastapi.security import OAuth2PasswordBearer
-from fastapi import HTTPException
-from jose import jwt, JWTError
-import uuid
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login", auto_error=False)
 
@@ -73,23 +74,45 @@ async def get_current_user(
     settings: Settings = Depends(get_settings),
 ) -> __import__("app.models.user").models.user.User:
     if not token:
-        raise HTTPException(status_code=401, detail={"error": "NOT_AUTHENTICATED", "message": "Vui lòng đăng nhập"})
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "NOT_AUTHENTICATED", "message": "Vui lòng đăng nhập"},
+        )
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.secret_key, algorithms=[settings.jwt_algorithm]
+        )
         user_id: str = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail={"error": "INVALID_TOKEN", "message": "Token không hợp lệ"})
-    except JWTError:
-        raise HTTPException(status_code=401, detail={"error": "INVALID_TOKEN", "message": "Token không hợp lệ hoặc đã hết hạn"})
-    
-    from app.models.user import User
+            raise HTTPException(
+                status_code=401,
+                detail={"error": "INVALID_TOKEN", "message": "Token không hợp lệ"},
+            )
+    except JWTError as e:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "INVALID_TOKEN",
+                "message": "Token không hợp lệ hoặc đã hết hạn",
+            },
+        ) from e
+
     from sqlalchemy import select
+
+    from app.models.user import User
+
     result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
     user = result.scalars().first()
     if user is None:
-        raise HTTPException(status_code=401, detail={"error": "USER_NOT_FOUND", "message": "Tài khoản không tồn tại"})
+        raise HTTPException(
+            status_code=401,
+            detail={"error": "USER_NOT_FOUND", "message": "Tài khoản không tồn tại"},
+        )
     if not user.is_active:
-        raise HTTPException(status_code=400, detail={"error": "INACTIVE_USER", "message": "Tài khoản đã bị khoá"})
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "INACTIVE_USER", "message": "Tài khoản đã bị khoá"},
+        )
     return user
 
 
@@ -101,15 +124,19 @@ async def get_optional_user(
     if not token:
         return None
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.secret_key, algorithms=[settings.jwt_algorithm]
+        )
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
     except JWTError:
         return None
-        
-    from app.models.user import User
+
     from sqlalchemy import select
+
+    from app.models.user import User
+
     try:
         result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
         user = result.scalars().first()

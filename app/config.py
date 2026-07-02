@@ -33,8 +33,8 @@ class Settings(BaseSettings):
 
     # ── Redis ──────────────────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
-    redis_ttl_seconds: int = 86400          # 24 giờ — TTL mặc định cho cache URL
-    redis_negative_ttl_seconds: int = 300   # 5 phút — TTL cho cache NOT_FOUND
+    redis_ttl_seconds: int = 86400  # 24 giờ — TTL mặc định cho cache URL
+    redis_negative_ttl_seconds: int = 300  # 5 phút — TTL cho cache NOT_FOUND
 
     # ── Security ───────────────────────────────────────────────────────────────
     secret_key: str = "dev-secret-key-change-in-production"
@@ -61,7 +61,9 @@ class Settings(BaseSettings):
 
     @property
     def blacklisted_domains(self) -> list[str]:
-        return [d.strip().lower() for d in self.domain_blacklist.split(",") if d.strip()]
+        return [
+            d.strip().lower() for d in self.domain_blacklist.split(",") if d.strip()
+        ]
 
     @field_validator("log_level")
     @classmethod

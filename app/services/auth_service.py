@@ -3,10 +3,10 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import bcrypt
 import structlog
 from fastapi import HTTPException
 from jose import jwt
-import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,7 @@ from app.schemas.auth import UserCreate
 
 log = structlog.get_logger()
 settings = get_settings()
+
 
 def get_password_hash(password: str) -> str:
     # bcrypt requires bytes
@@ -27,8 +28,7 @@ def get_password_hash(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         return bcrypt.checkpw(
-            plain_password.encode("utf-8"), 
-            hashed_password.encode("utf-8")
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
         )
     except Exception:
         return False
@@ -95,6 +95,6 @@ async def create_user(db: AsyncSession, user_in: UserCreate) -> User:
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
-    
+
     log.info("user_created", user_id=str(db_obj.id), username=db_obj.username)
     return db_obj

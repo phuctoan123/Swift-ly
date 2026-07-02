@@ -1,20 +1,17 @@
 """Analytics API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import redis.asyncio as aioredis
-import json
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_async_session
-from app.dependencies import get_current_user, get_redis_client
-from app.models.url import URL, URLStats, ClickEvent
+from app.dependencies import get_optional_user, get_redis_client
+from app.models.url import URL, ClickEvent
 from app.models.user import User
 
 router = APIRouter(prefix="/v1/urls", tags=["Analytics"])
 
-
-from app.dependencies import get_optional_user
 
 @router.get("/{short_code}/stats", summary="Lấy thống kê URL")
 async def get_url_stats(
@@ -32,37 +29,50 @@ async def get_url_stats(
     stmt = select(URL).where(URL.short_code == short_code)
     result = await db.execute(stmt)
     url_record = result.scalar_one_or_none()
-    
+
     if not url_record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "URL_NOT_FOUND", "message": "Không tìm thấy URL"},
         )
-        
+
     if url_record.user_id is not None:
         if not user or url_record.user_id != user.id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"error": "UNAUTHORIZED", "message": "Không có quyền truy cập thống kê của URL này"},
+                detail={
+                    "error": "UNAUTHORIZED",
+                    "message": "Không có quyền truy cập thống kê của URL này",
+                },
             )
-        
+
     # 2. Lấy cache statistics (tuỳ chọn MVP)
     # Vì MVP ta sẽ đếm trực tiếp từ db
-    
+
     # Tổng clicks
-    count_stmt = select(func.count(ClickEvent.id)).where(ClickEvent.short_code == short_code)
+    count_stmt = select(func.count(ClickEvent.id)).where(
+        ClickEvent.short_code == short_code
+    )
     total_clicks = await db.scalar(count_stmt) or 0
-    
+
     # Gom nhóm theo thiết bị
-    device_stmt = select(ClickEvent.device_type, func.count(ClickEvent.id)).where(ClickEvent.short_code == short_code).group_by(ClickEvent.device_type)
+    device_stmt = (
+        select(ClickEvent.device_type, func.count(ClickEvent.id))
+        .where(ClickEvent.short_code == short_code)
+        .group_by(ClickEvent.device_type)
+    )
     device_result = await db.execute(device_stmt)
     devices = {str(k): v for k, v in device_result.all()}
-    
+
     # Gom nhóm theo quốc gia
-    country_stmt = select(ClickEvent.country_code, func.count(ClickEvent.id)).where(ClickEvent.short_code == short_code).group_by(ClickEvent.country_code)
+    country_stmt = (
+        select(ClickEvent.country_code, func.count(ClickEvent.id))
+        .where(ClickEvent.short_code == short_code)
+        .group_by(ClickEvent.country_code)
+    )
     country_result = await db.execute(country_stmt)
     countries = {str(k): v for k, v in country_result.all() if k}
-    
+
     return {
         "short_code": short_code,
         "total_clicks": total_clicks,

@@ -11,6 +11,7 @@ from httpx import AsyncClient
 
 # ── POST /v1/shorten ───────────────────────────────────────────────────────────
 
+
 class TestShortenEndpoint:
     """Tests cho POST /v1/shorten."""
 
@@ -117,6 +118,7 @@ class TestShortenEndpoint:
 
 # ── GET /{short_code} ──────────────────────────────────────────────────────────
 
+
 class TestRedirectEndpoint:
     """Tests cho GET /{short_code}."""
 
@@ -167,6 +169,7 @@ class TestRedirectEndpoint:
 
 
 # ── GET /v1/health ─────────────────────────────────────────────────────────────
+
 
 class TestHealthEndpoint:
     """Tests cho GET /v1/health."""
