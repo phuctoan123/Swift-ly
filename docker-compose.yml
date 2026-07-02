@@ -1,0 +1,91 @@
+
+services:
+  # ── API Server ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: urlshortener-api
+    expose:
+      - "8000"
+    environment:
+      APP_ENV: development
+      BASE_URL: http://localhost:8000
+      DATABASE_URL: postgresql+asyncpg://postgres:1234@host.docker.internal:5432/urlshortener
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      LOG_LEVEL: DEBUG
+      SHORT_CODE_LENGTH: 7
+      SHORT_CODE_MAX_RETRIES: 5
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app        # Hot reload trong dev
+      - ./alembic:/app/alembic
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # ── Analytics Worker ────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: urlshortener-worker
+    environment:
+      APP_ENV: development
+      # Note: using db if in docker network or host.docker.internal if connecting to local host
+      DATABASE_URL: postgresql+asyncpg://postgres:1234@host.docker.internal:5432/urlshortener
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python -m app.worker
+    restart: unless-stopped
+
+  # ── Redis (Cache + Message Queue) ──────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: urlshortener-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Nginx Reverse Proxy ────────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: urlshortener-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ── Frontend (Next.js) ──────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: urlshortener-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:80
+    depends_on:
+      - api
+      - nginx
+    restart: unless-stopped
+
+volumes:
+  redis_data:

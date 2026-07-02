@@ -1,0 +1,9 @@
+# Dev / test dependencies (includes runtime)
+-r requirements.txt
+
+pytest==8.3.2
+pytest-asyncio==0.23.8
+pytest-cov==5.0.0
+ruff==0.5.6
+mypy==1.11.1
+aiosqlite==0.20.0
