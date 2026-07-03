@@ -34,9 +34,9 @@ class TestGenerateShortCode:
         for _ in range(100):
             code = generate_short_code()
             for char in code:
-                assert char in BASE62_CHARS, (
-                    f"Character '{char}' is not in BASE62_CHARS"
-                )
+                assert (
+                    char in BASE62_CHARS
+                ), f"Character '{char}' is not in BASE62_CHARS"
 
     def test_randomness(self):
         """1000 short codes liên tiếp phải có ít nhất 990 giá trị khác nhau."""
