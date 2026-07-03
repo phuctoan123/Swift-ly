@@ -14,12 +14,19 @@ from app.config import get_settings
 settings = get_settings()
 
 # ── Engine ─────────────────────────────────────────────────────────────────────
+engine_kwargs = {
+    "echo": settings.is_development,
+}
+if "sqlite" not in settings.database_url:
+    engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_pre_ping": True,
+    })
+
 engine = create_async_engine(
     settings.database_url,
-    echo=settings.is_development,  # Log SQL queries trong dev
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,  # Kiểm tra connection còn sống trước khi dùng
+    **engine_kwargs
 )
 
 # ── Session Factory ────────────────────────────────────────────────────────────
