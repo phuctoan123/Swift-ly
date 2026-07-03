@@ -16,3 +16,4 @@ user-agents==2.2.0
 geoip2==4.8.0
 beautifulsoup4==4.12.3
 prometheus-client==0.20.0
+python-multipart = 0.0.32
