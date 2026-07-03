@@ -18,16 +18,15 @@ engine_kwargs = {
     "echo": settings.is_development,
 }
 if "sqlite" not in settings.database_url:
-    engine_kwargs.update({
-        "pool_size": 10,
-        "max_overflow": 20,
-        "pool_pre_ping": True,
-    })
+    engine_kwargs.update(
+        {
+            "pool_size": 10,
+            "max_overflow": 20,
+            "pool_pre_ping": True,
+        }
+    )
 
-engine = create_async_engine(
-    settings.database_url,
-    **engine_kwargs
-)
+engine = create_async_engine(settings.database_url, **engine_kwargs)
 
 # ── Session Factory ────────────────────────────────────────────────────────────
 AsyncSessionLocal = async_sessionmaker(
